@@ -1,0 +1,6 @@
+# ignore vscode and pycache files 
+**/.vscode
+**/__pycache__
+**/.venv
+
+*.mdl
