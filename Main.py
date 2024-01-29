@@ -9,6 +9,13 @@ Python: version 3.8.1
 Author: Leland Dorchester
 """
 
+# TODO: Count number of accounts in model, and count number of accounts in new accounts file. Make a comparison
+            # We need to know how many accounts need to be deleted, and how many accounts needs to be added.
+# TODO: We probably need to know how many accounts are on each object, and how many accounts we would like to add/remove from each object.
+# TODO: add a changelog that illustrates object by object, which accounts were added, removed, or changed. 
+# Can we create a dictionary of existing accounts, a dictionary of accounts we need to add, then perform a comparison to create the changelog?
+
+
 def readfile(filename):
 
     f = open(filename, "r")
