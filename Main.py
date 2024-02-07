@@ -17,6 +17,17 @@ Author: Leland Dorchester
 # TODO: add a changelog that illustrates object by object, which accounts were added, removed, or changed. 
 # Can we create a dictionary of existing accounts, a dictionary of accounts we need to add, then perform a comparison to create the changelog?
 
+# Replace the old accounts with new accounts
+def ReplaceAccounts(ftest,WRData):
+    print('tests')
+    for x in ftest: #loop through the entire file
+        print(x)
+        for AcctToRemove in WRData['AccountsToRemove']:
+            print(AcctToRemove)
+            if AcctToRemove in x:
+                idx = WRData.iloc(str(AcctToRemove))
+                #x = x.replace(str(AcctToRemove), )
+
 def CheckEveryAccountToRemoveExists(f,f2,WRData):
     # This functions searches for every account listed in the AccountsToRemove dataframe in the model text file
     # if the account is found, a counter is updated. The end result of the count of accounts found, must be the
@@ -99,6 +110,10 @@ def readfile(filename):
 
     # check all acounts we plan to remove actually exist in the model file:
     CheckEveryAccountToRemoveExists(f,f2,WRData)
+
+    # Replace the old accounts with new accounts
+    ftest = f
+    ReplaceAccounts(ftest,WRData)
 
     # Loop through each line in the mdl file.
     f.close(), f2.close() #, f3.close(), f4.close()
