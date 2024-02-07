@@ -1,6 +1,8 @@
 #Import packages here:
 import os
 import re
+import csv
+from pandas import *
 
 """
 Overview
@@ -20,46 +22,64 @@ def readfile(filename):
 
     f = open(filename, "r")
     f2 = open('ListOfRWAccounts.txt', "w")
-    f3 = open('ListOfSetObjects.txt', "w")
-    f4 = open('oneobject.txt',"w")
-    #trigger = False
+    # f3 = open('ListOfSetObjects.txt', "w")
+    # f4 = open('oneobject.txt',"w")
+
+    rowctr = 0
     for x in f:
         #print(x)
         # check if   "$obj acct dive"   is contained in the string
-        #if "\"$obj\" acct dive" in x:
-        #    f2.write(x)
-        # create a list of set objects in the model for txt file syntax analysis
-        if "set obj" in x:
-            f3.write(x)
+        if "\"$obj\" acct dive" in x:
+            print(rowctr)
+            print(x)
+           
+            # getting index of substrings
+            idx1 = x.index('{')
+            idx2 = x.index('}')
+ 
+            acct = ''
+            # getting elements in between
+            for idx in range(idx1+1, idx2):
+                acct = acct + x[idx]
 
-        # if trigger:
-        #     print(x)
+            y = x.replace("\"$obj\" acct dive","") 
+            f2.write('row: ' + str(rowctr) + ':' + acct + '\n')
 
-        if "set obj \"$ws." in x:
-            #trigger = True
-            x = next(f, None)   # update to the next line in the file
-            while "set obj \"$ws." not in x:
-                f4.write(x)     # write the contents of the object to a temp holding file for troubleshooting
-                
-                if x is None:
-                    break       # Exit the loop if there are no more lines in the file
-                
-                # write the account name to the list of RW accounts file (ListOfRWAccounts.txt)
-                if "\"$obj\" acct dive " in x:
-                    startidx = x.find("{")
-                    endidx = x.find("}")
-                    acctname = x[startidx+1:endidx]
-                    f2.write("\n" + acctname)
-                    x = x.replace(acctname,"TestAccount")
+        rowctr += 1
 
-                x = next(f, None)
+    import os
+
+    current_directory = os.getcwd()
+    subdirectory_name = "SupportingFiles"
+    file_name = "AccountsReplacement.csv"
+    ReplacementAccounts_filepath = os.path.join(current_directory, subdirectory_name, file_name)
+    
+
+    # open/read the new accounts mapping file.
+    # accts_listofdictionaries = []
+    # with open(ReplacementAccounts_filepath, 'r') as file:
+    #     dict_reader = csv.DictReader(file)
+    #     for line in dict_reader:
+    #         accts_listofdictionaries.append(line)
+
+    # accts_dict = {}
+    # for d in accts_listofdictionaries:
+    #     accts_dict.update(d)
+
+    # print(accts_dict)
+
+    data = read_csv(ReplacementAccounts_filepath)
+    AcctsToAdd = data['AccountsToAdd'].tolist
+    AcctsToRemove = data['AccountsToRemove'].tolist
+    ata = len(AcctsToAdd)
+    atr = len(AcctsToRemove)
+
+    if ata != atr:
+        input('list of new accounts does not equal list of old accounts. Please check the account mapping and restart.\n Click enter to exit: ')
 
 
-            f4.write('\n\n ********** NEXT OBJECT ********** \n\n')
             
-
-
-    f.close(), f2.close(), f3.close(), f4.close()
+    f.close(), f2.close() #, f3.close(), f4.close()
 
 # Can run main_process.py directly for testing
 if __name__ == "__main__":
