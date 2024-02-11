@@ -3,6 +3,7 @@ import os
 import re
 import csv
 from pandas import *
+import shutil
 
 """
 Overview
@@ -18,19 +19,27 @@ Author: Leland Dorchester
 # Can we create a dictionary of existing accounts, a dictionary of accounts we need to add, then perform a comparison to create the changelog?
 
 # Replace the old accounts with new accounts
-def ReplaceAccounts(ftest,WRData):
-    print('tests')
-    for x in ftest: #loop through the entire file
-        print(x)
-        for AcctToRemove in WRData['AccountsToRemove']:
-            print(AcctToRemove)
-            if AcctToRemove in x:
-                idx = WRData.iloc(str(AcctToRemove))
-                #x = x.replace(str(AcctToRemove), )
+def ReplaceAccounts(f,WRData):
+    # this function isn't working yet. we need to read and write simultaneously: https://stackoverflow.com/questions/125703/how-to-modify-a-text-file
+    lst = ['$obj acct dive ','set o "$obj^','$mgr supply','set o "$mgr.']
+    atr_lst = WRData['AccountsToRemove'].tolist()
+    ata_lst = WRData['AccountsToAdd'].tolist()
+    for x in f: #loop through the entire file
+        #print(x)
+        for substring in lst:
+            if substring in x:
+                for AcctToRemove in atr_lst:
+                    if AcctToRemove in x:
+                        idx = atr_lst.index(AcctToRemove)
+                        replacement = ata_lst[idx]
+                        x = x.replace(str(AcctToRemove), replacement)
+                        #FIXME even after finding and completing the replacement, if the list of replacements hasn't
+                        # been completely searched, the algorithm continues.
+                        # ??? is it possible to exit the most inner for loop, if the final "if" statement executes?
 
-def CheckEveryAccountToRemoveExists(f,f2,WRData):
+def CheckEveryAccountToRemoveExists(fr,f2,WRData):
     # This functions searches for every account listed in the AccountsToRemove dataframe in the model text file
-    # if the account is found, a counter is updated. The end result of the count of accounts found, must be the
+    # if the account is found, a counter is updated. The end result of the count of accounts found must be the
     # same length as the accounts planned to remove. If these lengths don't match, the mapping wont work, so we 
     # exit the python script
     DFOfAcctsToRemove = WRData['AccountsToRemove']
@@ -38,18 +47,19 @@ def CheckEveryAccountToRemoveExists(f,f2,WRData):
     atr = len(WRData['AccountsToRemove'])
     rowctr = 0
     FoundAccts = 0
-    for x in f: # loop through each line in the file
+    for x in fr: # loop through each line in the file
 
-        # check if   "$obj acct dive"   is contained in the string
+        # check if   "$obj acct dive"   is contained in the string. this restricts our search to account declarations
         if "\"$obj\" acct dive" in x:
             print('row: ', rowctr, '\n')
 
-            for AcctToRemove in DFOfAcctsToRemove: # loop through each acct that we are removing.
+            for AcctToRemove in DFOfAcctsToRemove: # loop through the list of accts that we are removing.
                 #print(AcctToRemove)
                 if AcctToRemove in x:
                     print('Found Account: ', AcctToRemove, '\n')
                     FoundAccts += 1
-                    # TODO: you could speed this up by removing the found account from this dataframe. Therefore the next search will be one less.
+                    # TODO: you could speed this up by removing the found account from this dataframe. 
+                    # Therefore the next search will be one less. Marginal gains at best though.
 
 
             # getting index of substrings
@@ -87,7 +97,7 @@ def readWRChangeFile(WRChangelog_fn):
     if ata != atr:
         input('list of new accounts does not equal list of old accounts. Please check the account mapping and restart.\n Click enter to exit: ')
     else:
-        print('successfully read all new accounts')
+        print('successfully read all new accounts from the change file')
 
     if isna(data).any().any():
         print('NaN\'s (or blanks), encountered in the import file. Please double check the file and try again\n')
@@ -96,24 +106,75 @@ def readWRChangeFile(WRChangelog_fn):
 
     return data
 
+def makebackupfile(filename):
+    # this function checks for a preexisting backup file, deletes it if it exists, then creates a new backup file
+    # it returns the file path of the backup file.
+
+    cwd = os.getcwd()
+    filenameparts = filename.split(".")
+    read_dest_filename = filenameparts[0] + "_wNewAccountsRead" + "." + filenameparts[1]
+    write_dest_filename = filenameparts[0] + "_wNewAccountsWrite" + "." + filenameparts[1]    
+    # src contains the path of the source file 
+    src = filename
+    # dest contains the path of the destination file 
+    destr = read_dest_filename # read
+    destw = write_dest_filename # write
+    # create duplicate of the file at the destination, 
+    try:
+        print('checking for pre-existing model file with automatically added accounts')
+        os.remove(destr)
+        os.remove(destw)
+    except Exception as e:
+        print('File did not exist. \n')
+        print(e)
+
+    path = shutil.copy(src,destr)
+    path = shutil.copy(src,destw)
+    return [destr, destw]
+
 def readfile(filename):
     
-    WRData = readWRChangeFile('AccountsReplacement.csv')
+    try:
+        WRData = readWRChangeFile('AccountsReplacement.csv')
+        print('Succesfully read WRChange file')
+    except Exception as e:
+        print(e)
+        input('failed at readWRChangeFile fxn, click enter to exit')
+
     ata = len(WRData['AccountsToAdd'])
     atr = len(WRData['AccountsToRemove'])
-
     cwd = os.getcwd()
     filename = cwd + '\\' + filename
 
-    f = open(filename, "r")
+    # remove preexisting auto-file, and create a backup to work in.
+    try:
+        [destr, destw] = makebackupfile(filename)
+    except Exception as e:
+        print(e)
+        input('failed at makebackupfile function, click enter to exit')
+
+    fr = open(destr, "r") # reading the backup file
     f2 = open('ListOfRWAccounts.txt', "w")
 
     # check all acounts we plan to remove actually exist in the model file:
-    CheckEveryAccountToRemoveExists(f,f2,WRData)
+    try:
+        CheckEveryAccountToRemoveExists(fr,f2,WRData)
+        fr.close()
+    except Exception as e: 
+        print('Exception error encountered when trying to execute CheckEveryAccountToRemoveExists. \n')
+        print('Exception error: \n')
+        print(e)
 
     # Replace the old accounts with new accounts
-    ftest = f
-    ReplaceAccounts(ftest,WRData)
+    # ftest = f
+
+    try:
+        f = open(destw, "r") # reading the backup file
+        ReplaceAccounts(f,WRData)
+    except Exception as e: 
+        print('Exception error encountered when trying to execute CheckEveryAccountToRemoveExists. \n')
+        print('Exception error: \n')
+        print(e)
 
     # Loop through each line in the mdl file.
     f.close(), f2.close() #, f3.close(), f4.close()
@@ -122,4 +183,9 @@ def readfile(filename):
 if __name__ == "__main__":
     cwd = os.getcwd()
     filename = 'DuchesneBasinModel_LFYR_and_URWR_AccountsAdded.mdl'
-    readfile(filename)
+    try:
+        readfile(filename)
+        print('succesfully executed main function')
+    except Exception as e:
+        print(e)
+        print('failed main function')
